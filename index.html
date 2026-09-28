@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Our Hub</title>
+
+<!-- This is what makes it open full screen, with its icon, instead of in Safari -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Our Hub">
+<meta name="application-name" content="Our Hub">
+<!-- every screen opens on the roasted hero, so the clock and battery are drawn light over it -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2A1D13">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="manifest" href="manifest.json">
+
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#2A1D13;overscroll-behavior:none}
+  #app{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:#2A1D13}
+  #boot{position:fixed;inset:0;display:grid;place-items:center;font:500 17px/1.4 ui-serif,"New York",Georgia,serif;
+        color:#CAAE92;background:#2A1D13;transition:opacity .4s}
+  #boot.gone{opacity:0;pointer-events:none}
+  /* measures the phone's safe areas, which the app inside the frame can't read */
+  #probe{position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;
+         padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+</style>
+</head>
+<body>
+
+<div id="boot">Opening…</div>
+<div id="probe"></div>
+
+<!-- PASTE YOUR /exec LINK BETWEEN THE QUOTES BELOW -->
+<iframe id="app" title="Our Hub" src="PASTE_YOUR_EXEC_URL_HERE" allow="clipboard-write"></iframe>
+
+<script>
+(function(){
+  /* a different key from the money app's wrapper, which lives on the same github.io address */
+  var KEY = "hub-code";
+  var frame = document.getElementById("app");
+  var boot  = document.getElementById("boot");
+  var probe = document.getElementById("probe");
+  var appWin = null;
+
+  function stored(){ try{ return localStorage.getItem(KEY) || ""; }catch(e){ return ""; } }
+  function insets(){
+    var cs = getComputedStyle(probe);
+    return { top: parseFloat(cs.paddingTop) || 0, bottom: parseFloat(cs.paddingBottom) || 0 };
+  }
+  function sendInsets(){
+    if (!appWin) return;
+    var i = insets();
+    try{ appWin.postMessage({hub:"insets", top:i.top, bottom:i.bottom}, "*"); }catch(e){}
+  }
+
+  /* The app lives on Google's address, so Safari keeps its storage apart from
+     this page's. This page remembers the code and hands it over, so neither of
+     you types it every time the hub opens. */
+  window.addEventListener("message", function(ev){
+    var m = ev && ev.data;
+    /* Apps Script nests the app a frame or two deep inside Google's own pages,
+       so the message comes from that inner window, not the iframe here. Reply
+       to whichever window wrote. */
+    if (!m || !m.hub || !ev.source || ev.source === window) return;
+    if (m.hub === "ready") {
+      appWin = ev.source;
+      sendInsets();
+      var c = stored();
+      if (c) { try{ ev.source.postMessage({hub:"code", code:c}, "*"); }catch(e){} }
+    }
+    if (m.hub === "setcode" && typeof m.code === "string") {
+      try{ localStorage.setItem(KEY, m.code); }catch(e){}
+    }
+  });
+  window.addEventListener("resize", sendInsets);
+  window.addEventListener("orientationchange", function(){ setTimeout(sendInsets, 300); });
+
+  frame.addEventListener("load", function(){ boot.classList.add("gone"); });
+  setTimeout(function(){ boot.classList.add("gone"); }, 6000);
+})();
+</script>
+</body>
+</html>
