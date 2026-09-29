@@ -18,8 +18,12 @@
 <link rel="manifest" href="manifest.json">
 
 <style>
-  html,body{margin:0;padding:0;height:100%;background:#2A1D13;overscroll-behavior:none}
-  #app{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:#2A1D13}
+  html,body{margin:0;padding:0;height:100%;background:#EFE5DA;overscroll-behavior:none;overflow:hidden}
+  @media (prefers-color-scheme:dark){html,body{background:#140E0A}}
+  /* On an iPhone opened from the Home Screen, "the whole screen" measured as 100%
+     can stop short of the strip behind the home bar, which left a dark band at the
+     bottom. The large viewport height always reaches the bottom edge. */
+  #app{position:fixed;top:0;left:0;width:100%;height:100vh;height:100lvh;min-height:100%;border:0;display:block;background:transparent}
   #boot{position:fixed;inset:0;display:grid;place-items:center;font:500 17px/1.4 ui-serif,"New York",Georgia,serif;
         color:#CAAE92;background:#2A1D13;transition:opacity .4s}
   #boot.gone{opacity:0;pointer-events:none}
@@ -34,7 +38,7 @@
 <div id="probe"></div>
 
 <!-- PASTE YOUR /exec LINK BETWEEN THE QUOTES BELOW -->
-<iframe id="app" title="Our Hub" src="https://script.google.com/macros/s/AKfycbxmAmtwekeyApcD76hpuZ2FBYz5p_1J8aBqm6Pwob1Qvui5CLvaibSJDjkykt-i0Yuecg/exec" allow="clipboard-write"></iframe>
+<iframe id="app" title="Our Hub" src="PASTE_YOUR_EXEC_URL_HERE" allow="clipboard-write"></iframe>
 
 <script>
 (function(){
