@@ -18,15 +18,8 @@
 <link rel="manifest" href="manifest.json">
 
 <style>
-  html,body{margin:0;padding:0;height:100%;background:#EFE5DA;overscroll-behavior:none;overflow:hidden}
-  @media (prefers-color-scheme:dark){html,body{background:#140E0A}}
-  /* Opened from the Home Screen, some iPhones give the page a window that stops
-     short of the bottom of the screen, by about the height of the status bar. The
-     strip below it isn't part of the page and nothing can be drawn there; iPhone
-     just fills it with the page's background colour. So the frame fills exactly the
-     window it's given (nothing gets cut off), and that background is the app's own
-     cream, or its dark brown in dark mode, so the strip blends in. */
-  #app{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:transparent}
+  html,body{margin:0;padding:0;height:100%;background:#2A1D13;overscroll-behavior:none}
+  #app{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:#2A1D13}
   #boot{position:fixed;inset:0;display:grid;place-items:center;font:500 17px/1.4 ui-serif,"New York",Georgia,serif;
         color:#CAAE92;background:#2A1D13;transition:opacity .4s}
   #boot.gone{opacity:0;pointer-events:none}
@@ -55,16 +48,7 @@
   function stored(){ try{ return localStorage.getItem(KEY) || ""; }catch(e){ return ""; } }
   function insets(){
     var cs = getComputedStyle(probe);
-    var top = parseFloat(cs.paddingTop) || 0, bottom = parseFloat(cs.paddingBottom) || 0;
-    /* when the visible page already stops above the home bar, the tab bar
-       doesn't need to leave room for it as well */
-    /* When the window already stops above the home bar, the tab bar doesn't
-       need to leave room for it as well, or it floats too high. */
-    var standalone = window.navigator.standalone === true ||
-      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
-    var gap = Math.max(0, Math.max(screen.width || 0, screen.height || 0) - Math.max(window.innerWidth, window.innerHeight));
-    if (standalone && gap > 0 && gap < 160) bottom = Math.max(0, bottom - gap);
-    return { top: top, bottom: bottom };
+    return { top: parseFloat(cs.paddingTop) || 0, bottom: parseFloat(cs.paddingBottom) || 0 };
   }
   function sendInsets(){
     if (!appWin) return;
@@ -92,7 +76,6 @@
     }
   });
   window.addEventListener("resize", sendInsets);
-
   window.addEventListener("orientationchange", function(){ setTimeout(sendInsets, 300); });
 
   frame.addEventListener("load", function(){ boot.classList.add("gone"); });
