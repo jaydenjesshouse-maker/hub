@@ -20,10 +20,11 @@
 <style>
   html,body{margin:0;padding:0;height:100%;background:#EFE5DA;overscroll-behavior:none;overflow:hidden}
   @media (prefers-color-scheme:dark){html,body{background:#140E0A}}
-  /* On an iPhone opened from the Home Screen, the page stops short of the strip
-     behind the home bar. The frame fills exactly what's visible, so nothing is cut
-     off, and the strip below is painted the app's own colour, not brown. */
-  #app{position:fixed;inset:0;width:100%;height:100%;border:0;display:block;background:transparent}
+  /* Opened from the Home Screen, an iPhone measures the page as the screen minus
+     the status bar, so anything sized to "the page" stops that far short of the
+     bottom. The frame and the opening screen are sized to the real screen height
+     below, in the script, so they reach the bottom edge. */
+  #app{position:fixed;top:0;left:0;width:100%;height:100%;border:0;display:block;background:transparent}
   #boot{position:fixed;inset:0;display:grid;place-items:center;font:500 17px/1.4 ui-serif,"New York",Georgia,serif;
         color:#CAAE92;background:#2A1D13;transition:opacity .4s}
   #boot.gone{opacity:0;pointer-events:none}
@@ -55,9 +56,6 @@
     var top = parseFloat(cs.paddingTop) || 0, bottom = parseFloat(cs.paddingBottom) || 0;
     /* when the visible page already stops above the home bar, the tab bar
        doesn't need to leave room for it as well */
-    var gap = Math.max(0, (screen.height || 0) - window.innerHeight);
-    var standalone = window.navigator.standalone === true || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
-    if (standalone && gap > 0 && gap < 120) bottom = Math.max(0, bottom - gap);
     return { top: top, bottom: bottom };
   }
   function sendInsets(){
@@ -85,7 +83,22 @@
       try{ localStorage.setItem(KEY, m.code); }catch(e){}
     }
   });
-  window.addEventListener("resize", sendInsets);
+  /* size the frame to the whole screen when opened from the Home Screen */
+  function fit(){
+    var standalone = window.navigator.standalone === true ||
+      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+    var h = window.innerHeight;
+    if (standalone && screen && screen.height) {
+      var landscape = window.innerWidth > window.innerHeight;
+      var full = landscape ? Math.min(screen.width, screen.height) : Math.max(screen.width, screen.height);
+      if (full > h && full - h < 160) h = full;
+    }
+    frame.style.height = h + "px";
+    boot.style.bottom = "auto"; boot.style.height = h + "px";
+  }
+  fit();
+  window.addEventListener("resize", function(){ fit(); sendInsets(); });
+  window.addEventListener("orientationchange", function(){ setTimeout(fit, 300); });
   window.addEventListener("orientationchange", function(){ setTimeout(sendInsets, 300); });
 
   frame.addEventListener("load", function(){ boot.classList.add("gone"); });
