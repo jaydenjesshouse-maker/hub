@@ -26,12 +26,23 @@
   /* measures the phone's safe areas, which the app inside the frame can't read */
   #probe{position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;
          padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+  /* Drop 8: the box that asks for notifications. Only this page may ask, not the app inside. */
+  #ask{position:fixed;inset:0;z-index:10;display:none;align-items:flex-end;justify-content:center;background:rgba(14,9,6,.55)}
+  #ask.on{display:flex}
+  #ask .box{width:100%;max-width:520px;background:#EFE5DA;color:#24180F;border-radius:28px 28px 0 0;padding:26px 22px calc(26px + env(safe-area-inset-bottom,0px));
+            font:16px/1.45 -apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+  #ask h2{font:500 26px/1.15 ui-serif,"New York",Georgia,serif;margin:0 0 8px}
+  #ask p{margin:0 0 20px;color:#6F5A48}
+  #ask button{display:block;width:100%;border:0;border-radius:99px;padding:15px;font:600 17px -apple-system,system-ui,sans-serif;margin-top:10px}
+  #ask .yes{background:#2A1D13;color:#F4E2D4}#ask .no{background:#E7DACB;color:#24180F}
+  @media (prefers-color-scheme:dark){ #ask .box{background:#221912;color:#F3E8DC} #ask p{color:#B9A18B} #ask .yes{background:#F4E2D4;color:#2A1D13} #ask .no{background:#33261C;color:#F3E8DC} }
 </style>
 </head>
 <body>
 
 <div id="boot">Opening…</div>
 <div id="probe"></div>
+<div id="ask" role="dialog" aria-modal="true" aria-labelledby="askT"><div class="box"><h2 id="askT">Turn on notifications?</h2><p id="askP">So you hear when the other one of you changes something, without opening the hub.</p><button class="yes" id="askY">Turn on</button><button class="no" id="askN">Not now</button></div></div>
 
 <!-- PASTE YOUR /exec LINK BETWEEN THE QUOTES BELOW -->
 <iframe id="app" title="Our Hub" src="https://script.google.com/macros/s/AKfycbxmAmtwekeyApcD76hpuZ2FBYz5p_1J8aBqm6Pwob1Qvui5CLvaibSJDjkykt-i0Yuecg/exec" allow="clipboard-write"></iframe>
@@ -82,6 +93,81 @@
   });
   window.addEventListener("resize", sendInsets);
   window.addEventListener("orientationchange", function(){ setTimeout(sendInsets, 300); });
+
+  /* ---------- Drop 8: notifications ---------- */
+  var ask = document.getElementById("ask"), askKey = "", askMe = "";
+  function reply(msg){ if (appWin) { try{ appWin.postMessage(msg, "*"); }catch(e){} } }
+  function standalone(){ return (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true; }
+  var swReg = null;
+  if ("serviceWorker" in navigator) { try{ navigator.serviceWorker.register("sw.js").then(function(r){ swReg = r; }).catch(function(){}); }catch(e){} }
+  function reg(){
+    return new Promise(function(res, rej){
+      if (!("serviceWorker" in navigator)) return rej("nosw");
+      var t = setTimeout(function(){ rej("timeout"); }, 5000);
+      navigator.serviceWorker.ready.then(function(r){ clearTimeout(t); res(r); }, function(e){ clearTimeout(t); rej(e); });
+    });
+  }
+  function pushState(cb){
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window))
+      return cb({state:"unsupported", why: /iPhone|iPad/.test(navigator.userAgent) && !standalone() ? "ios-tab" : "browser"});
+    if (Notification.permission === "denied") return cb({state:"denied"});
+    reg().then(function(r){ return r.pushManager.getSubscription(); })
+      .then(function(sub){ cb({state: sub && Notification.permission === "granted" ? "on" : "off", endpoint: sub ? sub.endpoint : ""}); })
+      .catch(function(){ cb({state:"off"}); });
+  }
+  /* what the service worker needs to ask the script what's new */
+  function saveCfg(){
+    if (!("caches" in window)) return;
+    var who = ""; try{ who = localStorage.getItem(ME) || ""; }catch(e){}
+    var cfg = {exec: frame.src, code: stored(), me: who};
+    try{ caches.open("hub-push").then(function(c){ return c.put("cfg", new Response(JSON.stringify(cfg), {headers:{"Content-Type":"application/json"}})); }).catch(function(){}); }catch(e){}
+  }
+  function keyBytes(b64){ b64 = b64.replace(/-/g, "+").replace(/_/g, "/"); while (b64.length % 4) b64 += "="; var raw = atob(b64), out = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i); return out; }
+  document.getElementById("askN").addEventListener("click", function(){ ask.classList.remove("on"); reply({hub:"pusherr", msg:"Not now. You can turn them on from the bell any time."}); });
+  document.getElementById("askY").addEventListener("click", function(){
+    ask.classList.remove("on");
+    /* this tap is the permission request: phones only allow it straight from a tap on this page */
+    Notification.requestPermission().then(function(p){
+      if (p !== "granted") { reply({hub:"pushstate", state: p === "denied" ? "denied" : "off"}); return; }
+      return reg().then(function(r){ return r.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:keyBytes(askKey)}); })
+        .then(function(sub){ saveCfg(); reply({hub:"pushsub", sub: sub.toJSON(), me: askMe}); reply({hub:"pushstate", state:"on", endpoint: sub.endpoint}); });
+    }).catch(function(e){ reply({hub:"pusherr", msg:"The phone said no (" + (e && e.message || e) + ")."}); });
+  });
+  window.addEventListener("message", function(ev){
+    var m = ev && ev.data;
+    if (!m || !m.hub || !ev.source || ev.source === window) return;
+    if (m.hub === "pushstate?" || m.hub === "ready") { appWin = appWin || ev.source; pushState(function(o){ o.hub = "pushstate"; reply(o); if (o.state === "on") saveCfg(); }); }
+    if (m.hub === "pushask" && typeof m.key === "string") {
+      appWin = ev.source; askKey = m.key; askMe = m.me || "";
+      if (m.other) document.getElementById("askP").textContent = "So you hear when " + m.other + " changes something, without opening the hub.";
+      ask.classList.add("on");
+    }
+    if (m.hub === "pushoff") {
+      reg().then(function(r){ return r.pushManager.getSubscription(); }).then(function(sub){
+        var ep = sub ? sub.endpoint : ""; return (sub ? sub.unsubscribe() : true).then(function(){ reply({hub:"pushstate", state:"off", left: ep}); });
+      }).catch(function(){ reply({hub:"pushstate", state:"off"}); });
+    }
+    if (m.hub === "badge" && typeof m.n === "number") {
+      try{ if (m.n > 0 && navigator.setAppBadge) navigator.setAppBadge(m.n); else if (navigator.clearAppBadge) navigator.clearAppBadge(); }catch(e){}
+    }
+  });
+
+  /* ---------- Drop 9: the back button (Android) ----------
+     While the hub has a panel or a page open, this page holds one step of
+     history. Back takes that step instead of leaving the hub; we tell the
+     hub, and it closes the panel or goes back a page. */
+  var guard = false, unguarding = false;
+  window.addEventListener("message", function(ev){
+    var m = ev && ev.data;
+    if (!m || m.hub !== "canback" || !ev.source || ev.source === window) return;
+    appWin = appWin || ev.source;
+    if (m.on && !guard) { guard = true; try{ history.pushState({hubBack: 1}, ""); }catch(e){ guard = false; } }
+    else if (!m.on && guard) { guard = false; if (history.state && history.state.hubBack) { unguarding = true; history.back(); } }
+  });
+  window.addEventListener("popstate", function(){
+    if (unguarding) { unguarding = false; return; }
+    if (guard) { guard = false; reply({hub:"back"}); }
+  });
 
   frame.addEventListener("load", function(){ boot.classList.add("gone"); });
   setTimeout(function(){ boot.classList.add("gone"); }, 6000);
