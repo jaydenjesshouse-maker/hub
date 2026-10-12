@@ -40,6 +40,7 @@
 (function(){
   /* a different key from the money app's wrapper, which lives on the same github.io address */
   var KEY = "hub-code";
+  var ME  = "hub-me";
   var frame = document.getElementById("app");
   var boot  = document.getElementById("boot");
   var probe = document.getElementById("probe");
@@ -69,7 +70,11 @@
       appWin = ev.source;
       sendInsets();
       var c = stored();
-      if (c) { try{ ev.source.postMessage({hub:"code", code:c}, "*"); }catch(e){} }
+      var who = ""; try{ who = localStorage.getItem(ME) || ""; }catch(e){}
+      if (c) { try{ ev.source.postMessage({hub:"code", code:c, me:who}, "*"); }catch(e){} }
+    }
+    if (m.hub === "setme" && typeof m.me === "string") {
+      try{ localStorage.setItem(ME, m.me); }catch(e){}
     }
     if (m.hub === "setcode" && typeof m.code === "string") {
       try{ localStorage.setItem(KEY, m.code); }catch(e){}
