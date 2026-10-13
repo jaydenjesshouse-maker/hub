@@ -52,10 +52,14 @@
   /* a different key from the money app's wrapper, which lives on the same github.io address */
   var KEY = "hub-code";
   var ME  = "hub-me";
+  var LAST = "hub-last";   // Drop 10: the last copy of the hub, on this phone only
+  var DEV  = "hub-dev";    // Drop 10.1: which device this is
   var frame = document.getElementById("app");
   var boot  = document.getElementById("boot");
   var probe = document.getElementById("probe");
   var appWin = null;
+  /* ?go=add|shop|balance from the icon's shortcuts; taken off the address so a refresh doesn't repeat it */
+  var GOQ = ""; try{ var gm = String(location.search).match(/[?&]go=(add|shop|balance)\b/); if (gm) { GOQ = gm[1]; history.replaceState(null, "", location.pathname); } }catch(e){}
 
   function stored(){ try{ return localStorage.getItem(KEY) || ""; }catch(e){ return ""; } }
   function insets(){
@@ -82,11 +86,23 @@
       sendInsets();
       var c = stored();
       var who = ""; try{ who = localStorage.getItem(ME) || ""; }catch(e){}
-      if (c) { try{ ev.source.postMessage({hub:"code", code:c, me:who}, "*"); }catch(e){} }
+      var dev = ""; try{ dev = localStorage.getItem(DEV) || ""; }catch(e){}
+      if (c) { try{ ev.source.postMessage({hub:"code", code:c, me:who, dev:dev}, "*"); }catch(e){} }
+      /* Drop 10.2: opened from a press-and-hold shortcut on the icon (Android) */
+      if (c && GOQ) { try{ ev.source.postMessage({hub:"go", go:GOQ}, "*"); }catch(e){} GOQ = ""; }
+      /* Drop 10: the last copy, so the hub draws straight away and then catches up */
+      if (c) { try{ var last = JSON.parse(localStorage.getItem(LAST) || "null"); if (last && last.state) ev.source.postMessage({hub:"cached", state:last.state, rev:last.rev, base:last.base||null, dirty:!!last.dirty}, "*"); }catch(e){} }
     }
+    if (m.hub === "cache") {
+      try{ if (m.state) localStorage.setItem(LAST, JSON.stringify({state:m.state, rev:m.rev||0, base:m.base||null, dirty:!!m.dirty, at:Date.now()})); else localStorage.removeItem(LAST); }catch(e){}
+    }
+    /* Drop 10.1: this device's own id, so the hub can tell your iPhone from your iPad */
+    if (m.hub === "setdev" && typeof m.id === "string") { try{ localStorage.setItem(DEV, m.id); }catch(e){} }
     if (m.hub === "setme" && typeof m.me === "string") {
       try{ localStorage.setItem(ME, m.me); }catch(e){}
     }
+    /* Drop 10.2: a little buzz when something's ticked (Android; iPhones don't allow it) */
+    if (m.hub === "buzz") { try{ if (navigator.vibrate) navigator.vibrate(12); }catch(e){} }
     if (m.hub === "setcode" && typeof m.code === "string") {
       try{ localStorage.setItem(KEY, m.code); }catch(e){}
     }
@@ -100,12 +116,25 @@
   function standalone(){ return (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true; }
   var swReg = null;
   if ("serviceWorker" in navigator) { try{ navigator.serviceWorker.register("sw.js").then(function(r){ swReg = r; }).catch(function(){}); }catch(e){} }
+  /* Drop 9: if the first try didn't take, try again now, and wait up to 15
+     seconds for it to be ready (a slow signal can take more than 5). */
   function reg(){
     return new Promise(function(res, rej){
       if (!("serviceWorker" in navigator)) return rej("nosw");
-      var t = setTimeout(function(){ rej("timeout"); }, 5000);
-      navigator.serviceWorker.ready.then(function(r){ clearTimeout(t); res(r); }, function(e){ clearTimeout(t); rej(e); });
+      var t = setTimeout(function(){ rej("timeout"); }, 15000);
+      navigator.serviceWorker.getRegistration().then(function(r){ return r || navigator.serviceWorker.register("sw.js"); })
+        .then(function(){ return navigator.serviceWorker.ready; })
+        .then(function(r){ clearTimeout(t); res(r); }, function(e){ clearTimeout(t); rej(e); });
     });
+  }
+  /* why it didn't work, in words: most often sw.js isn't on GitHub next to this page */
+  function whyNot(e, cb){
+    var m = String(e && e.message || e || "");
+    fetch("sw.js", {cache: "no-store"}).then(function(r){
+      if (!r.ok) return cb("This page can’t find sw.js (" + r.status + "). Upload sw.js to GitHub next to index.html, wait a minute, then close the hub and open it again from its icon.");
+      if (m === "timeout") return cb("The phone didn’t finish setting up in time. Close the hub fully (swipe it away), open it again from its icon, and try once more.");
+      cb("The phone said no (" + m + ").");
+    }).catch(function(){ cb(m === "timeout" ? "No signal, or the phone didn’t finish setting up. Try again with a signal." : "The phone said no (" + m + ")."); });
   }
   function pushState(cb){
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window))
@@ -131,7 +160,7 @@
       if (p !== "granted") { reply({hub:"pushstate", state: p === "denied" ? "denied" : "off"}); return; }
       return reg().then(function(r){ return r.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:keyBytes(askKey)}); })
         .then(function(sub){ saveCfg(); reply({hub:"pushsub", sub: sub.toJSON(), me: askMe}); reply({hub:"pushstate", state:"on", endpoint: sub.endpoint}); });
-    }).catch(function(e){ reply({hub:"pusherr", msg:"The phone said no (" + (e && e.message || e) + ")."}); });
+    }).catch(function(e){ whyNot(e, function(msg){ reply({hub:"pusherr", msg: msg}); }); });
   });
   window.addEventListener("message", function(ev){
     var m = ev && ev.data;
