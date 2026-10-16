@@ -45,7 +45,7 @@
 <div id="ask" role="dialog" aria-modal="true" aria-labelledby="askT"><div class="box"><h2 id="askT">Turn on notifications?</h2><p id="askP">So you hear when the other one of you changes something, without opening the hub.</p><button class="yes" id="askY">Turn on</button><button class="no" id="askN">Not now</button></div></div>
 
 <!-- PASTE YOUR /exec LINK BETWEEN THE QUOTES BELOW -->
-<iframe id="app" title="Our Hub" src="https://script.google.com/macros/s/AKfycbxmAmtwekeyApcD76hpuZ2FBYz5p_1J8aBqm6Pwob1Qvui5CLvaibSJDjkykt-i0Yuecg/exec" allow="clipboard-write"></iframe>
+<iframe id="app" title="Our Hub" src="PASTE_YOUR_EXEC_URL_HERE" allow="clipboard-write"></iframe>
 
 <script>
 (function(){
@@ -59,7 +59,9 @@
   var probe = document.getElementById("probe");
   var appWin = null;
   /* ?go=add|shop|balance from the icon's shortcuts; taken off the address so a refresh doesn't repeat it */
-  var GOQ = ""; try{ var gm = String(location.search).match(/[?&]go=(add|shop|balance)\b/); if (gm) { GOQ = gm[1]; history.replaceState(null, "", location.pathname); } }catch(e){}
+  var GOQ = ""; try{ var gm = String(decodeURIComponent(location.search)).match(/[?&]go=(add|shop|balance|l:[A-Za-z0-9_-]+)(?![A-Za-z0-9_:-])/); if (gm) { GOQ = gm[1]; history.replaceState(null, "", location.pathname); } }catch(e){}
+  /* Drop 10.8: a notification tapped while the hub is already open */
+  try{ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", function(ev){ var m = ev && ev.data; if (m && m.hub === "go" && typeof m.go === "string") { if (appWin) { try{ appWin.postMessage({hub:"go", go:m.go}, "*"); }catch(e){} } else GOQ = m.go; } }); }catch(e){}
 
   function stored(){ try{ return localStorage.getItem(KEY) || ""; }catch(e){ return ""; } }
   function insets(){
