@@ -49,13 +49,17 @@ self.addEventListener("push", function(e){
     var title = (j && j.title) || "Our Hub", body = (j && j.body) || "Something’s new in the hub.";
     var n = j && typeof j.count === "number" ? j.count : 0;
     try { if (n > 0 && self.navigator.setAppBadge) self.navigator.setAppBadge(n); } catch (err) {}
-    return self.registration.showNotification(title, {body: body, tag: (j && j.tag) || "hub", renotify: true, icon: "icon-180.png", badge: "icon-180.png", data: {go: (j && j.go) || ""}});
+    var opts = {body: body, tag: (j && j.tag) || "hub", renotify: true, icon: "icon-180.png", badge: "icon-180.png", data: {go: (j && j.go) || ""}};
+    /* V11.6: an ask carries Yes / No (Android shows them; iPhone opens the hub) */
+    if (j && Array.isArray(j.actions) && j.actions.length) opts.actions = j.actions.slice(0, 2);
+    return self.registration.showNotification(title, opts);
   }));
 });
 /* Drop 10.8: tapping a notification opens the thing it's about, not just the hub */
 self.addEventListener("notificationclick", function(e){
   e.notification.close();
   var go = (e.notification.data && e.notification.data.go) || "";
+  if (go && e.action) go = go + ":" + e.action;
   e.waitUntil(self.clients.matchAll({type: "window", includeUncontrolled: true}).then(function(cs){
     for (var i = 0; i < cs.length; i++) { if ("focus" in cs[i]) { if (go) { try { cs[i].postMessage({hub: "go", go: go}); } catch (err) {} } return cs[i].focus(); } }
     return self.clients.openWindow("./" + (go ? "?go=" + encodeURIComponent(go) : ""));
