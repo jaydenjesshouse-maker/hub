@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Our Hub · Privacy</title>
+<meta name="theme-color" content="#2A1D13">
+<link rel="icon" type="image/png" href="icon-512.png">
+<style>
+:root{--bg:#F6EFE6;--ink:#2A1D13;--soft:#6B5444;--line:#E3D5C4;--accent:#8A5A36}
+@media (prefers-color-scheme:dark){:root{--bg:#1C130C;--ink:#F1E6D8;--soft:#CAAE92;--line:#3A2A1E;--accent:#D9A877}}
+html{background:var(--bg)}
+body{margin:0 auto;max-width:640px;padding:40px 20px 64px;color:var(--ink);background:var(--bg);
+font:17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+h1{font:600 32px/1.2 ui-serif,"New York",Georgia,serif;margin:0 0 6px}
+h2{font:600 20px/1.3 ui-serif,"New York",Georgia,serif;margin:32px 0 8px;padding-top:20px;border-top:1px solid var(--line)}
+p,li{margin:0 0 10px} ul{padding-left:20px;margin:0 0 10px}
+.sub{color:var(--soft);margin:0 0 24px} a{color:var(--accent)}
+footer{margin-top:40px;color:var(--soft);font-size:15px}
+</style>
+</head>
+<body>
+<h1>Privacy</h1>
+<p class="sub">Our Hub is a private app used by two people, Jayden and Jess. It isn't offered to anyone else.</p>
+
+<h2>What the hub reads</h2>
+<p>When you connect a card or account through open banking (via Enable Banking), the hub reads only what you approve:</p>
+<ul>
+<li>the account or card name</li>
+<li>the balance and available credit</li>
+<li>transactions: date, amount, merchant name and category</li>
+</ul>
+<p>It can't move money, make payments or change anything with the bank. Access is read-only.</p>
+
+<h2>Where it's kept</h2>
+<ul>
+<li>In a private Google Sheet and Google Apps Script project owned by Jayden. Nothing is kept on any other server.</li>
+<li>Transactions are kept for about 120 days, then removed automatically.</li>
+<li>The keys that let the hub talk to Enable Banking are kept in the script's private settings, never in the app or on GitHub.</li>
+</ul>
+
+<h2>Who can see it</h2>
+<ul>
+<li>Each person's cards and payments are shown only on their own phone, behind the hub's passcode.</li>
+<li>The other person only sees that you have cards, and how many.</li>
+<li>Nothing is sold, shared or used for advertising. No analytics or tracking are used.</li>
+</ul>
+
+<h2>Who else is involved</h2>
+<ul>
+<li><b>Enable Banking Oy</b> connects to the bank or card provider and passes the data on.</li>
+<li><b>Google</b> hosts the Sheet and the script.</li>
+<li><b>GitHub Pages</b> hosts the app's front page, which holds no personal data.</li>
+</ul>
+
+<h2>Stopping it</h2>
+<ul>
+<li>Open banking access ends by itself after 90 days unless you approve it again.</li>
+<li>In the hub, <b>Forget this card</b> ends the connection and deletes that card's stored data straight away.</li>
+<li>You can also withdraw access at any time in your bank's or card provider's app.</li>
+</ul>
+
+<h2>Questions</h2>
+<p>Ask Jayden, who runs the hub. Under UK GDPR you can ask to see, correct or delete anything it holds about you.</p>
+<footer>Last updated 20 October 2026. <a href="terms.html">Terms</a></footer>
+</body>
+</html>
