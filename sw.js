@@ -42,8 +42,9 @@ function cfg(){
 }
 self.addEventListener("push", function(e){
   e.waitUntil(cfg().then(function(c){
-    if (!c || !c.exec) return null;
-    var url = c.exec + (c.exec.indexOf("?") < 0 ? "?" : "&") + "push=latest&code=" + encodeURIComponent(c.code || "") + "&me=" + encodeURIComponent(c.me || "");
+    /* V12: this device's own key; the script works out whose it is from that */
+    if (!c || !c.exec || !c.k) return null;
+    var url = c.exec + (c.exec.indexOf("?") < 0 ? "?" : "&") + "push=latest&k=" + encodeURIComponent(c.k);
     return fetch(url, {credentials: "omit"}).then(function(r){ return r.json(); });
   }).catch(function(){ return null; }).then(function(j){
     var title = (j && j.title) || "Our Hub", body = (j && j.body) || "Something’s new in the hub.";
