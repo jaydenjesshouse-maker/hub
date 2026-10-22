@@ -48,39 +48,32 @@
 <iframe id="app" title="Our Hub" data-exec="https://script.google.com/macros/s/AKfycbxmAmtwekeyApcD76hpuZ2FBYz5p_1J8aBqm6Pwob1Qvui5CLvaibSJDjkykt-i0Yuecg/exec" allow="clipboard-write"></iframe>
 
 <script>
+/* V12: this page only ever runs as the top page, never inside someone else's */
+if (window.top !== window.self) { document.documentElement.innerHTML = ""; throw new Error("Our Hub won't open inside another page."); }
 (function(){
-  /* a different key from the money app's wrapper, which lives on the same github.io address */
-  var KEY = "hub-code";
-  var ME  = "hub-me";
-  var LAST = "hub-last";   // Drop 10: the last copy of the hub, on this phone only
-  var DEV  = "hub-dev";    // Drop 10.1: which device this is
+  var KEY  = "hub-dev12"; // V12: this device's own key (the app keeps it; the two share this storage)
+  var ME   = "hub-me";    // whose it is, as the hub said
+  var LAST = "hub-last";  // Drop 10: the last copy of the hub, on this phone only
+  var DEV  = "hub-dev";   // Drop 10.1: which device this is
   var frame = document.getElementById("app");
-  /* V11: the app opens from app.html, next to this page, which the phone keeps a
-     copy of, so it's there instantly. It talks to the script with POSTs. If that
-     doesn't work on this phone, it goes back to opening the app from Google, the
-     old way, for a day, and then tries again. */
+  /* the app opens from app.html, next to this page, which the phone keeps a copy of,
+     so it's there instantly. It talks to the script with POSTs. V12: the script's
+     address is handed to it in a message, never in its own address, and the old
+     way (the app served by Google) is gone. */
   var EXEC = frame.getAttribute("data-exec") || "";
-  var OLD = "hub-old";
-  function oldWay(){ try{ var t = Number(localStorage.getItem(OLD) || 0); return t && Date.now() - t < 86400000; }catch(e){ return false; } }
-  var fast = !oldWay() && /^https:/.test(EXEC);
-  var fastOk = false, readyAt = 0, updWaiting = false;
-  function goOld(why){
-    if (!fast) return; fast = false;
-    try{ localStorage.setItem(OLD, String(Date.now())); localStorage.setItem("hub-old-why", String(why || "")); }catch(e){}
-    appWin = null; frame.src = EXEC;
-  }
-  frame.src = fast ? "app.html?exec=" + encodeURIComponent(EXEC) : EXEC;
-  if (fast) setTimeout(function(){ if (!readyAt) goOld("app.html didn’t open"); }, 12000);
-  /* it opened, but has it reached the script? a call that never comes back counts as failing */
-  if (fast) setTimeout(function(){ if (!fastOk && navigator.onLine !== false) goOld("no answer from the script"); }, 20000);
+  var ORIGIN = location.origin;
+  frame.src = "app.html";
   var boot  = document.getElementById("boot");
   var probe = document.getElementById("probe");
-  var appWin = null;
+  var appWin = null, updWaiting = false;
+  /* V12 (client H2): only the app in this page's own frame, on this address, is ever answered */
+  function fromApp(ev){ return !!ev && ev.origin === ORIGIN && !!frame.contentWindow && ev.source === frame.contentWindow; }
+  function tell(msg){ if (frame.contentWindow) { try{ frame.contentWindow.postMessage(msg, ORIGIN); }catch(e){} } }
   /* ?go=add|shop|balance from the icon's shortcuts; taken off the address so a refresh doesn't repeat it */
   var GOQ = ""; try{ var gm = String(decodeURIComponent(location.search)).match(/[?&]go=(add|shop|balance|l:[A-Za-z0-9_-]+)(?![A-Za-z0-9_:-])/); if (gm) { GOQ = gm[1]; history.replaceState(null, "", location.pathname); } }catch(e){}
   /* Drop 10.8: a notification tapped while the hub is already open */
-  try{ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", function(ev){ var m = ev && ev.data; if (m && m.hub === "update" && fast) { if (appWin) { try{ appWin.postMessage({hub:"update"}, "*"); }catch(e){} } else updWaiting = true; return; } }); }catch(e){}
-  try{ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", function(ev){ var m = ev && ev.data; if (m && m.hub === "go" && typeof m.go === "string") { if (appWin) { try{ appWin.postMessage({hub:"go", go:m.go}, "*"); }catch(e){} } else GOQ = m.go; } }); }catch(e){}
+  try{ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", function(ev){ var m = ev && ev.data; if (m && m.hub === "update") { if (appWin) tell({hub:"update"}); else updWaiting = true; return; } }); }catch(e){}
+  try{ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", function(ev){ var m = ev && ev.data; if (m && m.hub === "go" && typeof m.go === "string") { if (appWin) tell({hub:"go", go:m.go}); else GOQ = m.go; } }); }catch(e){}
 
   function stored(){ try{ return localStorage.getItem(KEY) || ""; }catch(e){ return ""; } }
   function insets(){
@@ -90,55 +83,45 @@
   function sendInsets(){
     if (!appWin) return;
     var i = insets();
-    try{ appWin.postMessage({hub:"insets", top:i.top, bottom:i.bottom}, "*"); }catch(e){}
+    tell({hub:"insets", top:i.top, bottom:i.bottom});
   }
 
-  /* The app lives on Google's address, so Safari keeps its storage apart from
-     this page's. This page remembers the code and hands it over, so neither of
-     you types it every time the hub opens. */
   window.addEventListener("message", function(ev){
     var m = ev && ev.data;
-    /* Apps Script nests the app a frame or two deep inside Google's own pages,
-       so the message comes from that inner window, not the iframe here. Reply
-       to whichever window wrote. */
-    if (!m || !m.hub || !ev.source || ev.source === window) return;
-    if (m.hub === "fastok") { fastOk = true; }
-    if (m.hub === "slow") { if (!fastOk && navigator.onLine !== false) goOld(m.why); }
-    if (m.hub === "reload") { appWin = null; readyAt = 0; frame.src = fast ? "app.html?exec=" + encodeURIComponent(EXEC) + "&r=" + Date.now() : EXEC; }
+    if (!m || !m.hub || !fromApp(ev)) return;
+    if (m.hub === "reload") { appWin = null; frame.src = "app.html?r=" + Date.now(); }
     if (m.hub === "ready") {
-      readyAt = Date.now();
-      appWin = ev.source;
-      sendInsets();
-      if (updWaiting && fast) { updWaiting = false; try{ ev.source.postMessage({hub:"update"}, "*"); }catch(e){} }
+      appWin = frame.contentWindow;
       var c = stored();
-      var who = ""; try{ who = localStorage.getItem(ME) || ""; }catch(e){}
-      var dev = ""; try{ dev = localStorage.getItem(DEV) || ""; }catch(e){}
-      if (c) { try{ ev.source.postMessage({hub:"code", code:c, me:who, dev:dev, exec:EXEC}, "*"); }catch(e){} }
+      tell({hub:"boot", exec:EXEC});
+      sendInsets();
+      if (updWaiting) { updWaiting = false; tell({hub:"update"}); }
       /* Drop 10.2: opened from a press-and-hold shortcut on the icon (Android) */
-      if (c && GOQ) { try{ ev.source.postMessage({hub:"go", go:GOQ}, "*"); }catch(e){} GOQ = ""; }
+      if (c && GOQ) { tell({hub:"go", go:GOQ}); GOQ = ""; }
       /* Drop 10: the last copy, so the hub draws straight away and then catches up */
-      if (c) { try{ var last = JSON.parse(localStorage.getItem(LAST) || "null"); if (last && last.state) ev.source.postMessage({hub:"cached", state:last.state, rev:last.rev, base:last.base||null, dirty:!!last.dirty}, "*"); }catch(e){} }
+      if (c) { try{ var last = JSON.parse(localStorage.getItem(LAST) || "null"); if (last && last.state) tell({hub:"cached", state:last.state, rev:last.rev, base:last.base||null, dirty:!!last.dirty}); }catch(e){} }
+      saveCfg();
     }
     if (m.hub === "cache") {
       try{ if (m.state) localStorage.setItem(LAST, JSON.stringify({state:m.state, rev:m.rev||0, base:m.base||null, dirty:!!m.dirty, at:Date.now()})); else localStorage.removeItem(LAST); }catch(e){}
     }
     /* Drop 10.1: this device's own id, so the hub can tell your iPhone from your iPad */
     if (m.hub === "setdev" && typeof m.id === "string") { try{ localStorage.setItem(DEV, m.id); }catch(e){} }
-    if (m.hub === "setme" && typeof m.me === "string") {
-      try{ localStorage.setItem(ME, m.me); }catch(e){}
+    if (m.hub === "setme" && typeof m.me === "string") { try{ localStorage.setItem(ME, m.me); }catch(e){} saveCfg(); }
+    /* V12: this device's key changed (joined, or removed): the notifications follow it */
+    if (m.hub === "setdev12" && typeof m.token === "string") {
+      try{ if (m.token) localStorage.setItem(KEY, m.token); else localStorage.removeItem(KEY); }catch(e){}
+      if (m.token) saveCfg(); else { try{ caches.delete("hub-push"); }catch(e){} }
     }
     /* Drop 10.2: a little buzz when something's ticked (Android; iPhones don't allow it) */
     if (m.hub === "buzz") { try{ if (navigator.vibrate) navigator.vibrate(12); }catch(e){} }
-    if (m.hub === "setcode" && typeof m.code === "string") {
-      try{ localStorage.setItem(KEY, m.code); }catch(e){}
-    }
   });
   window.addEventListener("resize", sendInsets);
   window.addEventListener("orientationchange", function(){ setTimeout(sendInsets, 300); });
 
   /* ---------- Drop 8: notifications ---------- */
   var ask = document.getElementById("ask"), askKey = "", askMe = "";
-  function reply(msg){ if (appWin) { try{ appWin.postMessage(msg, "*"); }catch(e){} } }
+  function reply(msg){ if (appWin) tell(msg); }
   function standalone(){ return (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true; }
   var swReg = null;
   if ("serviceWorker" in navigator) { try{ navigator.serviceWorker.register("sw.js").then(function(r){ swReg = r; }).catch(function(){}); }catch(e){} }
@@ -172,9 +155,9 @@
   }
   /* what the service worker needs to ask the script what's new */
   function saveCfg(){
-    if (!("caches" in window)) return;
-    var who = ""; try{ who = localStorage.getItem(ME) || ""; }catch(e){}
-    var cfg = {exec: EXEC, code: stored(), me: who};
+    if (!("caches" in window) || !stored()) return;
+    /* V12: the service worker asks with this device's key (k=); who it's for comes from the key */
+    var cfg = {exec: EXEC, k: stored()};
     try{ caches.open("hub-push").then(function(c){ return c.put("cfg", new Response(JSON.stringify(cfg), {headers:{"Content-Type":"application/json"}})); }).catch(function(){}); }catch(e){}
   }
   function keyBytes(b64){ b64 = b64.replace(/-/g, "+").replace(/_/g, "/"); while (b64.length % 4) b64 += "="; var raw = atob(b64), out = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i); return out; }
@@ -190,10 +173,10 @@
   });
   window.addEventListener("message", function(ev){
     var m = ev && ev.data;
-    if (!m || !m.hub || !ev.source || ev.source === window) return;
-    if (m.hub === "pushstate?" || m.hub === "ready") { appWin = appWin || ev.source; pushState(function(o){ o.hub = "pushstate"; reply(o); if (o.state === "on") saveCfg(); }); }
+    if (!m || !m.hub || !fromApp(ev)) return;
+    if (m.hub === "pushstate?" || m.hub === "ready") { appWin = frame.contentWindow; pushState(function(o){ o.hub = "pushstate"; reply(o); if (o.state === "on") saveCfg(); }); }
     if (m.hub === "pushask" && typeof m.key === "string") {
-      appWin = ev.source; askKey = m.key; askMe = m.me || "";
+      appWin = frame.contentWindow; askKey = m.key; askMe = m.me || "";
       if (m.other) document.getElementById("askP").textContent = "So you hear when " + m.other + " changes something, without opening the hub.";
       ask.classList.add("on");
     }
@@ -214,8 +197,8 @@
   var guard = false, unguarding = false;
   window.addEventListener("message", function(ev){
     var m = ev && ev.data;
-    if (!m || m.hub !== "canback" || !ev.source || ev.source === window) return;
-    appWin = appWin || ev.source;
+    if (!m || m.hub !== "canback" || !fromApp(ev)) return;
+    appWin = frame.contentWindow;
     if (m.on && !guard) { guard = true; try{ history.pushState({hubBack: 1}, ""); }catch(e){ guard = false; } }
     else if (!m.on && guard) { guard = false; if (history.state && history.state.hubBack) { unguarding = true; history.back(); } }
   });
