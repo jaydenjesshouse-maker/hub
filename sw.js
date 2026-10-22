@@ -16,6 +16,19 @@ self.addEventListener("install", function(e){
 });
 self.addEventListener("activate", function(e){ e.waitUntil(self.clients.claim()); });
 function sig(r){ return r ? (r.headers.get("etag") || r.headers.get("last-modified") || r.headers.get("content-length") || "") : ""; }
+/* V12.2: Our Hub in the Share menu (Android). The share arrives here as a form; it's kept for a few
+   minutes, and the hub opens and asks for it (?go=share122). A picture is kept as base64, at most 6 MB. */
+function b64of(buf){ var b = new Uint8Array(buf), s = "", i; for (i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); }
+self.addEventListener("fetch", function(e){
+  var u = new URL(e.request.url);
+  if (e.request.method !== "POST" || u.origin !== self.location.origin || !/\/share$/.test(u.pathname)) return;
+  e.respondWith(e.request.formData().then(function(f){
+    var out = {title: String(f.get("title") || ""), text: String(f.get("text") || ""), url: String(f.get("url") || ""), at: Date.now()};
+    var file = f.get("file");
+    var pic = file && file.size && file.size < 6000000 && /^image\//.test(file.type) ? file.arrayBuffer().then(function(b){ out.file = {type: file.type, b64: b64of(b)}; }) : Promise.resolve();
+    return pic.then(function(){ return caches.open("hub-share"); }).then(function(c){ return c.put("last", new Response(JSON.stringify(out), {headers: {"Content-Type": "application/json"}})); });
+  }).catch(function(){}).then(function(){ return Response.redirect(new URL("./?go=share122", self.location.href).href, 303); }));
+});
 self.addEventListener("fetch", function(e){
   var u = new URL(e.request.url);
   if (e.request.method !== "GET" || u.origin !== self.location.origin || !/\/app\.html$/.test(u.pathname)) return;
