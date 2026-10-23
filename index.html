@@ -70,7 +70,7 @@ if (window.top !== window.self) { document.documentElement.innerHTML = ""; throw
   function fromApp(ev){ return !!ev && ev.origin === ORIGIN && !!frame.contentWindow && ev.source === frame.contentWindow; }
   function tell(msg){ if (frame.contentWindow) { try{ frame.contentWindow.postMessage(msg, ORIGIN); }catch(e){} } }
   /* ?go=add|shop|balance from the icon's shortcuts; taken off the address so a refresh doesn't repeat it */
-  var GOQ = ""; try{ var gm = String(decodeURIComponent(location.search)).match(/[?&]go=(add|shop|balance|money|payday123|tell1231|l:[A-Za-z0-9_-]+|share122|bk122(?::[A-Za-z0-9_-]+)?|sent122:[A-Za-z0-9_-]+)(?![A-Za-z0-9_:-])/); if (gm) { GOQ = gm[1]; history.replaceState(null, "", location.pathname); } }catch(e){}
+  var GOQ = ""; try{ var gm = String(decodeURIComponent(location.search)).match(/[?&]go=(add|shop|balance|money|payday123|tell1231|month126|l:[A-Za-z0-9_-]+|share122|bk122(?::[A-Za-z0-9_-]+)?|sent122:[A-Za-z0-9_-]+)(?![A-Za-z0-9_:-])/); if (gm) { GOQ = gm[1]; history.replaceState(null, "", location.pathname); } }catch(e){}
   /* Drop 10.8: a notification tapped while the hub is already open */
   try{ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", function(ev){ var m = ev && ev.data; if (m && m.hub === "update") { if (appWin) tell({hub:"update"}); else updWaiting = true; return; } }); }catch(e){}
   try{ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", function(ev){ var m = ev && ev.data; if (m && m.hub === "go" && typeof m.go === "string") { if (appWin) tell({hub:"go", go:m.go}); else GOQ = m.go; } }); }catch(e){}
