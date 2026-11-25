@@ -34,7 +34,8 @@
   .bd{padding:10px 11px 12px;display:flex;flex-direction:column;gap:3px;flex:1}
   .kd{align-self:flex-start;font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:2px 7px;border-radius:99px;background:var(--card2);color:var(--ink2)}
   .kd.love{background:#F3DCCB;color:#8C4A26}
-  .kd.idea{background:#2A1D14;color:#F4E2D4}   /* V14.4.6: the other one's idea, not theirs */
+  .kd.idea{background:#2A1D14;color:#F4E2D4}
+  .sz{display:block;font-size:13px;color:var(--ink2);margin-top:1px}   /* V14.4.7: a Turnout wish's colour and size */   /* V14.4.6: the other one's idea, not theirs */
   .t{font-size:14.5px;font-weight:500;line-height:1.25;text-decoration:none;word-break:break-word}
   .pr{font:500 19px var(--serif)}
   .sh{font-size:12.5px;color:var(--ink2);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:2px;align-self:flex-start}
@@ -102,10 +103,13 @@
     if(!xs.length){ q("main").innerHTML='<div class="msg"><b>Nothing on here right now</b>'+esc(nm)+' hasn’t added anything yet. Have another look nearer the time.</div>'; return; }
     var h='<div class="grid">'+xs.map(function(x){ var link=okUrl(x.link)?' href="'+esc(x.link)+'" target="_blank" rel="noopener noreferrer"':"", tag=link?"a":"span";
       var img=okImg(x.img)?' style="background-image:url(&quot;'+esc(String(x.img).replace(/["\\\n\r]/g,""))+'&quot;)"':"";
+      /* V14.4.7: a wish from his wardrobe app with no photo shows its colour */
+      var sw=!img&&x.kind==="turnout"&&/^#[0-9A-Fa-f]{6}$/.test(x.hex||"")?' style="background:'+x.hex+'"':"";
       var btn=x.mine?'<button class="b mine" data-un="'+esc(x.id)+'" aria-label="You’re getting this. Undo">'+IC.tick+'Yours<u>Undo</u></button>':x.taken?'<span class="b gone">Someone’s got this</span>':'<button class="b get" data-get="'+esc(x.id)+'">I’ll get this</button>';
-      return '<div class="c'+(x.taken&&!x.mine?" taken":"")+'"><'+tag+' class="im"'+link+img+(link?' aria-label="'+esc(x.t)+', in the shop"':"")+'>'+(img?"":IC.box)+(link?'<span class="ex">'+IC.ext+'</span>':"")+'</'+tag+'>'+
+      return '<div class="c'+(x.taken&&!x.mine?" taken":"")+'"><'+tag+' class="im"'+link+(img||sw)+(link?' aria-label="'+esc(x.t)+', in the shop"':"")+'>'+(img||sw?"":IC.box)+(link?'<span class="ex">'+IC.ext+'</span>':"")+'</'+tag+'>'+
         '<div class="bd">'+(x.kind==="idea"?'<span class="kd idea">'+esc(poss1446(x.by||"Their")+" idea")+'</span>':'<span class="kd'+(x.kind==="think"?"":" love")+'">'+(x.kind==="think"?"Thinking of buying":"Would love")+'</span>')+
         (link?'<a class="t"'+link+'>'+esc(x.t)+'</a>':'<span class="t">'+esc(x.t)+'</span>')+(money(x.price)?'<span class="pr">'+money(x.price)+'</span>':"")+
+        (x.kind==="turnout"&&(x.colour||x.size)?'<span class="sz">'+esc([x.colour,x.size?"Size "+x.size:""].filter(Boolean).join(" · "))+'</span>':"")+
         (link?'<a class="sh"'+link+'>'+esc(host(x.link))+'</a>':"")+'<div class="go">'+btn+'</div></div></div>'; }).join("")+'</div>'+
       '<div class="foot">Tap a picture to see it in the shop. When you’re getting something, tap I’ll get this, so nobody buys it twice. '+esc(nm)+' can’t see any of it.</div>';
     q("main").innerHTML=h; }
