@@ -95,7 +95,8 @@
   function toast(t){ var el=q("toast"); el.textContent=t; el.classList.add("on"); clearTimeout(tt); tt=setTimeout(function(){ el.classList.remove("on"); },3200); }
   function fail(t){ q("main").innerHTML='<div class="msg"><b>'+esc(t[0])+'</b>'+esc(t[1])+'</div>'; }
   function ask(extra){ if(!K||!EXEC){ fail(["This link isn’t complete","Ask for the link again, and open it in full."]); return Promise.resolve(null); }
-    return fetch(EXEC+"?q=wl&k="+encodeURIComponent(K)+"&c="+encodeURIComponent(C)+(extra||""),{redirect:"follow",credentials:"omit"}).then(function(r){ return r.json(); }); }
+    return fetch(EXEC+"?q=wl&k="+encodeURIComponent(K)+"&c="+encodeURIComponent(C)+(extra||""),{redirect:"follow",credentials:"omit"}).then(function(r){ if(typeof r.text!=="function") return r.json();
+      return r.text().then(function(t){ try{ return JSON.parse(t); }catch(e){ var er=new Error("notjson"); er.notjson=true; throw er; } }); }); }
   function draw(){ if(!L) return; var nm=L.name||"Their";
     document.title=poss1446(nm)+" wishlist"; q("ey").textContent="Wishlist"; q("h").innerHTML=esc(poss1446(nm))+"<br>wishlist";   /* V14.4.6: Jess’, never Jess’s */
     if(L.note){ q("note").textContent="“"+L.note+"”"; q("note").hidden=false; } else q("note").hidden=true;
@@ -115,7 +116,10 @@
     q("main").innerHTML=h; }
   function load(extra,after){ if(busy) return; busy=true;
     ask(extra).then(function(r){ busy=false; if(!r) return; if(!r.ok){ fail(["This link has stopped working",r.say||"Ask for a new one."]); return; } L=r; draw(); if(r.say) toast(r.say); else if(after) toast(after); })
-      .catch(function(){ busy=false; if(L){ draw(); toast("No signal. Try again in a minute."); } else fail(["Couldn’t open the list","Check your signal and try again in a minute."]); }); }
+      .catch(function(e){ busy=false; if(L){ draw(); toast("No signal. Try again in a minute."); }
+        /* V14.4.8: with signal, a link that can't be opened is the link, not the phone */
+        else if(navigator.onLine===false) fail(["Couldn’t open the list","Check your signal and try again in a minute."]);
+        else fail(["This link isn’t working","Ask whoever sent it to send it to you again."]); }); }
   document.addEventListener("click",function(e){ var g=e.target.closest("[data-get]"), u=e.target.closest("[data-un]");
     if(g){ var x=(L.items||[]).filter(function(i){ return i.id===g.getAttribute("data-get"); })[0]; if(!x) return; pending=x.id;
       q("sT").textContent="Getting "+(x.t.length>40?"this":x.t)+"?"; q("sP").textContent=(L.name||"They")+" won’t know. Everyone else with the link sees “Someone’s got this”, so nobody buys it twice.";
