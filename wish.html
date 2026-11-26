@@ -56,6 +56,10 @@
   .sheet h2{font:400 26px/1.15 var(--serif);margin:0 0 6px}
   .sheet p{font-size:15px;color:#4A3627;margin:0 0 16px;line-height:1.45}
   .sheet .y{display:block;width:100%;height:50px;border-radius:99px;background:var(--esp);color:#F4E2D4;font-weight:600;font-size:16px}
+  .sheet .nm{display:block;text-align:left;font-size:14px;font-weight:600;color:var(--ink);margin:0 2px 6px}
+  .sheet .nm small{display:block;font-weight:400;color:var(--ink2);font-size:13px;margin-top:1px}
+  .sheet .nmi{display:block;width:100%;box-sizing:border-box;height:46px;border-radius:14px;border:1px solid #D9C8B8;background:#FFFDFB;padding:0 14px;font:16px var(--sans,inherit);color:var(--ink);margin-bottom:14px}
+  .b.gone.who{max-width:100%;white-space:normal;line-height:1.25;height:auto;min-height:40px;padding:8px 12px}   /* V14.4.10: who's getting it */
   .sheet .n{display:block;width:100%;height:46px;border-radius:99px;background:transparent;color:var(--ink2);font-weight:600;font-size:15px;margin-top:6px}
   .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--esp);color:#F4E2D4;padding:11px 16px;border-radius:99px;font-size:14px;font-weight:600;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;text-align:center}
   .toast.on{opacity:1}
@@ -70,7 +74,7 @@
   <div id="main"><div class="grid"><div class="skel"></div><div class="skel"></div></div></div>
 </div>
 <div class="scrim" id="scrim" role="dialog" aria-modal="true" aria-labelledby="sT"><div class="sheet"><div class="grab"></div><div class="gi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8c-2-4-6-3-5 0M12 8c2-4 6-3 5 0"/></svg></div>
-  <h2 id="sT">Getting this?</h2><p id="sP"></p><button class="y" id="sY">Yes, I’m getting it</button><button class="n" id="sN">Not yet</button></div></div>
+  <h2 id="sT">Getting this?</h2><p id="sP"></p><label class="nm" for="sNm">Your first name<small>Optional. Shows who’s getting it</small></label><input id="sNm" class="nmi" maxlength="24" autocomplete="given-name" autocapitalize="words" placeholder="Mum"><button class="y" id="sY">Yes, I’m getting it</button><button class="n" id="sN">Not yet</button></div></div>
 <div class="toast" id="toast" role="status"></div>
 <script>
 (function(){
@@ -95,7 +99,8 @@
   function toast(t){ var el=q("toast"); el.textContent=t; el.classList.add("on"); clearTimeout(tt); tt=setTimeout(function(){ el.classList.remove("on"); },3200); }
   function fail(t){ q("main").innerHTML='<div class="msg"><b>'+esc(t[0])+'</b>'+esc(t[1])+'</div>'; }
   function ask(extra){ if(!K||!EXEC){ fail(["This link isn’t complete","Ask for the link again, and open it in full."]); return Promise.resolve(null); }
-    return fetch(EXEC+"?q=wl&k="+encodeURIComponent(K)+"&c="+encodeURIComponent(C)+(extra||""),{redirect:"follow",credentials:"omit"}).then(function(r){ if(typeof r.text!=="function") return r.json();
+    /* V14.4.8: the browser's code goes as b=. Apps Script keeps c= for itself, and refuses any request that has one */
+    return fetch(EXEC+"?q=wl&k="+encodeURIComponent(K)+"&b="+encodeURIComponent(C)+(extra||""),{redirect:"follow",credentials:"omit"}).then(function(r){ if(typeof r.text!=="function") return r.json();
       return r.text().then(function(t){ try{ return JSON.parse(t); }catch(e){ var er=new Error("notjson"); er.notjson=true; throw er; } }); }); }
   function draw(){ if(!L) return; var nm=L.name||"Their";
     document.title=poss1446(nm)+" wishlist"; q("ey").textContent="Wishlist"; q("h").innerHTML=esc(poss1446(nm))+"<br>wishlist";   /* V14.4.6: Jess’, never Jess’s */
@@ -106,7 +111,7 @@
       var img=okImg(x.img)?' style="background-image:url(&quot;'+esc(String(x.img).replace(/["\\\n\r]/g,""))+'&quot;)"':"";
       /* V14.4.7: a wish from his wardrobe app with no photo shows its colour */
       var sw=!img&&x.kind==="turnout"&&/^#[0-9A-Fa-f]{6}$/.test(x.hex||"")?' style="background:'+x.hex+'"':"";
-      var btn=x.mine?'<button class="b mine" data-un="'+esc(x.id)+'" aria-label="You’re getting this. Undo">'+IC.tick+'Yours<u>Undo</u></button>':x.taken?'<span class="b gone">Someone’s got this</span>':'<button class="b get" data-get="'+esc(x.id)+'">I’ll get this</button>';
+      var btn=x.mine?'<button class="b mine" data-un="'+esc(x.id)+'" aria-label="You’re getting this. Undo">'+IC.tick+'Yours<u>Undo</u></button>':x.taken?(x.who?'<span class="b gone who">'+esc(x.who)+' is getting this</span>':'<span class="b gone">Someone’s got this</span>'):'<button class="b get" data-get="'+esc(x.id)+'">I’ll get this</button>';
       return '<div class="c'+(x.taken&&!x.mine?" taken":"")+'"><'+tag+' class="im"'+link+(img||sw)+(link?' aria-label="'+esc(x.t)+', in the shop"':"")+'>'+(img||sw?"":IC.box)+(link?'<span class="ex">'+IC.ext+'</span>':"")+'</'+tag+'>'+
         '<div class="bd">'+(x.kind==="idea"?'<span class="kd idea">'+esc(poss1446(x.by||"Their")+" idea")+'</span>':'<span class="kd'+(x.kind==="think"?"":" love")+'">'+(x.kind==="think"?"Thinking of buying":"Would love")+'</span>')+
         (link?'<a class="t"'+link+'>'+esc(x.t)+'</a>':'<span class="t">'+esc(x.t)+'</span>')+(money(x.price)?'<span class="pr">'+money(x.price)+'</span>':"")+
@@ -122,10 +127,13 @@
         else fail(["This link isn’t working","Ask whoever sent it to send it to you again."]); }); }
   document.addEventListener("click",function(e){ var g=e.target.closest("[data-get]"), u=e.target.closest("[data-un]");
     if(g){ var x=(L.items||[]).filter(function(i){ return i.id===g.getAttribute("data-get"); })[0]; if(!x) return; pending=x.id;
-      q("sT").textContent="Getting "+(x.t.length>40?"this":x.t)+"?"; q("sP").textContent=(L.name||"They")+" won’t know. Everyone else with the link sees “Someone’s got this”, so nobody buys it twice.";
+      q("sT").textContent="Getting "+(x.t.length>40?"this":x.t)+"?"; q("sP").textContent=(L.name||"They")+" won’t know. Everyone else with the link sees it’s being got, so nobody buys it twice.";
+      try{ q("sNm").value=localStorage.getItem("wl1445-n")||""; }catch(e){}
       q("scrim").classList.add("on"); q("sY").focus(); }
     if(u){ load("&unclaim="+encodeURIComponent(u.getAttribute("data-un")),"Unmarked. It’s free for anyone again."); } });
-  q("sY").addEventListener("click",function(){ q("scrim").classList.remove("on"); if(pending) load("&claim="+encodeURIComponent(pending),"Marked as yours. Nobody else will get it."); pending=null; });
+  q("sY").addEventListener("click",function(){ q("scrim").classList.remove("on"); var nm=String(q("sNm").value||"").replace(/\s+/g," ").trim().slice(0,24); try{ localStorage.setItem("wl1445-n",nm); }catch(e){}
+    /* V14.4.10: the first name, if given, so everyone else sees who's getting it */
+    if(pending) load("&claim="+encodeURIComponent(pending)+(nm?"&n="+encodeURIComponent(nm):""),"Marked as yours. Nobody else will get it."); pending=null; });
   q("sN").addEventListener("click",function(){ q("scrim").classList.remove("on"); pending=null; });
   q("scrim").addEventListener("click",function(e){ if(e.target===q("scrim")){ q("scrim").classList.remove("on"); pending=null; } });
   document.addEventListener("keydown",function(e){ if(e.key==="Escape"){ q("scrim").classList.remove("on"); pending=null; } });
